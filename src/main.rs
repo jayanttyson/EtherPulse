@@ -5,11 +5,48 @@ mod server;
 mod state;
 mod window;
 
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 use icmp::{query_system_adapter, IcmpEngine};
 use state::{AppState, SharedState};
+
+fn get_port_file_path() -> PathBuf {
+    std::env::var("LOCALAPPDATA")
+        .map(|p| PathBuf::from(p).join("EtherPulse").join("port.txt"))
+        .unwrap_or_else(|_| std::env::temp_dir().join("EtherPulse_port.txt"))
+}
+
+fn save_active_port(port: u16) {
+    let path = get_port_file_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(path, port.to_string());
+}
+
+fn read_active_port() -> u16 {
+    let path = get_port_file_path();
+    if let Ok(content) = std::fs::read_to_string(path) {
+        if let Ok(p) = content.trim().parse::<u16>() {
+            return p;
+        }
+    }
+    3000
+}
+
+fn remove_port_file() {
+    let path = get_port_file_path();
+    let _ = std::fs::remove_file(path);
+}
+
+struct PortFileGuard;
+impl Drop for PortFileGuard {
+    fn drop(&mut self) {
+        remove_port_file();
+    }
+}
 
 fn find_available_port(start_port: u16) -> u16 {
     for port in start_port..start_port + 20 {
@@ -24,7 +61,9 @@ fn main() {
     // 1. Single instance check
     if window::is_already_running() {
         // Already running, launch desktop window to activate existing instance
-        window::launch_desktop_window("http://127.0.0.1:3000");
+        let port = read_active_port();
+        let app_url = format!("http://127.0.0.1:{}", port);
+        window::launch_desktop_window(&app_url);
         return;
     }
 
@@ -40,6 +79,8 @@ fn main() {
         eprintln!("Failed to start server: {}", e);
         return;
     }
+    save_active_port(port);
+    let _port_guard = PortFileGuard;
 
     // 5. Launch Single Desktop Application Window
     window::launch_desktop_window(&app_url);
@@ -113,4 +154,6 @@ fn main() {
     while server::is_running() {
         thread::sleep(Duration::from_millis(200));
     }
+
+    remove_port_file();
 }

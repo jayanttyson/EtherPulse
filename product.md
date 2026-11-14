@@ -1,7 +1,7 @@
 # EtherPulse - LAN Cable & Network Telemetry Desktop Application
 
 ## Overview
-A modern, lightweight, 100% pure Rust single-window Windows desktop application for high-frequency LAN cable integrity monitoring, gateway ping telemetry, and instant disconnect logging. Engineered as a standalone single-file executable (`EtherPulse.exe` / `LanCableLogger.exe`) with zero external runtime dependencies and **absolute zero command prompt / console windows**, providing real-time visibility into local Ethernet cable drops, gateway unreachability, and WAN outages.
+A modern, lightweight, 100% pure Rust single-window Windows desktop application for high-frequency LAN cable integrity monitoring, gateway ping telemetry, and instant disconnect logging. Engineered as a standalone single-file executable (`EtherPulse.exe`) with zero external runtime dependencies and **absolute zero command prompt / console windows**, providing real-time visibility into local Ethernet cable drops, gateway unreachability, and WAN outages.
 
 ---
 
@@ -54,8 +54,8 @@ A modern, lightweight, 100% pure Rust single-window Windows desktop application 
 
 ```
 +-------------------------------------------------------------------------+
-|                  EtherPulse.exe / LanCableLogger.exe                    |
-|                          (100% Pure Rust)                               |
+|                             EtherPulse.exe                              |
+|                            (100% Pure Rust)                             |
 |                                                                         |
 |  +-------------------------------------------------------------------+  |
 |  |           Native Windows GUI Subsystem (Zero CMD Window)          |  |
@@ -78,14 +78,18 @@ A modern, lightweight, 100% pure Rust single-window Windows desktop application 
 ```
 
 ### Key Technical Attributes
-1. **100% Pure Rust**: Everything—backend server, ping scheduler, network adapter scanner, and embedded frontend UI—is pure Rust code compiled into one standalone Windows `.exe` (`EtherPulse.exe` / `LanCableLogger.exe`).
+1. **100% Pure Rust Architecture**: Backend ICMP ping engine, network adapter scanner, and embedded frontend UI are 100% Rust compiled into a single standalone Windows executable (`EtherPulse.exe`). All web assets are vendored and excluded via `.gitattributes` (`src/web/** linguist-vendored=true`, `*.html linguist-detectable=false`) guaranteeing 100% Rust language detection on GitHub.
 2. **Absolute Zero Console Window**:
    - Compiles with `#![windows_subsystem = "windows"]` to ensure the OS never allocates a console for the executable.
    - Spawns background desktop window with `CREATE_NO_WINDOW = 0x08000000`.
    - Uses native Win32 `ShellExecuteW` for opening log files or URLs, completely eliminating `cmd.exe` or `powershell.exe`.
-3. **Application Mode Launcher**: Automatically launches Microsoft Edge or Chrome in `--app=http://localhost:3000` with an isolated profile, giving a native frameless single-window application feel.
-4. **Graceful Auto-Shutdown**: Watchdog process monitors the desktop window; when the user closes the window or clicks Exit, the background server cleanly flushes the log file and terminates.
-5. **Single-Instance Mutex**: Running `EtherPulse.exe` (or `LanCableLogger.exe`) while an instance is already active focuses the existing window rather than spawning duplicate instances.
+3. **Application Mode Launcher**: Automatically launches Microsoft Edge or Chrome in `--app=http://127.0.0.1:<port>` with an isolated profile (`%LOCALAPPDATA%\EtherPulse\profile`), giving a native frameless single-window application feel.
+4. **Active Port Persistence**:
+   - The active HTTP server port is persisted to `%LOCALAPPDATA%\EtherPulse\port.txt` immediately upon server start.
+   - Secondary instance attempts detect `Global\EtherPulseSingleInstanceMutex`, read the active port from `port.txt`, and seamlessly focus/reopen the existing dashboard.
+   - The port file is cleanly deleted during graceful application shutdown.
+5. **Graceful Auto-Shutdown**: Watchdog process monitors the desktop window; when the user closes the window or clicks Exit, the background server cleanly flushes the log file, removes the active port file, and terminates.
+6. **Single-Instance Mutex**: Running `EtherPulse.exe` while an instance is already active focuses the existing window rather than spawning duplicate instances.
 
 ---
 
@@ -103,4 +107,4 @@ A modern, lightweight, 100% pure Rust single-window Windows desktop application 
 ---
 
 ## Usage
-- **One-Click Run**: Double-click `EtherPulse.exe` (or `LanCableLogger.exe`). Zero CMD prompt. Single window.
+- **One-Click Run**: Double-click `EtherPulse.exe`. Zero CMD prompt. Single window.

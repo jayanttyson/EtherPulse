@@ -26,7 +26,7 @@ const ERROR_ALREADY_EXISTS: u32 = 183;
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 pub fn is_already_running() -> bool {
-    let name: Vec<u16> = "Global\\LanCableLoggerSingleInstanceMutex"
+    let name: Vec<u16> = "Global\\EtherPulseSingleInstanceMutex"
         .encode_utf16()
         .chain(std::iter::once(0))
         .collect();
@@ -49,8 +49,8 @@ pub fn launch_desktop_window(url: &str) {
     ];
 
     let profile_dir = std::env::var("LOCALAPPDATA")
-        .map(|p| std::path::PathBuf::from(p).join("LanCableLogger").join("profile"))
-        .unwrap_or_else(|_| std::env::temp_dir().join("LanCableLoggerProfile"));
+        .map(|p| std::path::PathBuf::from(p).join("EtherPulse").join("profile"))
+        .unwrap_or_else(|_| std::env::temp_dir().join("EtherPulseProfile"));
 
     let _ = std::fs::create_dir_all(&profile_dir);
 

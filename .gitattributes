@@ -1,0 +1,3 @@
+# Ensure GitHub Linguist only counts Rust (100% Rust repository)
+src/web/** linguist-vendored=true
+*.html linguist-detectable=false

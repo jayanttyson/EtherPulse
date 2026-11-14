@@ -59,9 +59,11 @@ Unlike typical network monitor utilities that spawn invisible `cmd.exe` or `ping
 
 ### 6. Absolute Zero CMD Windows & Clean Lifecycle
 - **Windows Subsystem**: `#![windows_subsystem = "windows"]` eliminates the Windows console window entirely.
-- **App-Mode Launcher**: Launches Microsoft Edge or Chrome in `--app=http://127.0.0.1:3000` with an isolated user profile and `CREATE_NO_WINDOW = 0x08000000`.
-- **Single-Instance Mutex**: Prevents duplicate processes (`Global\LanCableLoggerSingleInstanceMutex`).
-- **Heartbeat Watchdog**: Shuts down the background daemon when the desktop window is closed.
+- **App-Mode Launcher**: Launches Microsoft Edge or Chrome in `--app=http://127.0.0.1:<port>` with an isolated user profile (`%LOCALAPPDATA%\EtherPulse\profile`) and `CREATE_NO_WINDOW = 0x08000000`.
+- **Active Port Persistence**: Saves active server port to `%LOCALAPPDATA%\EtherPulse\port.txt` upon startup; secondary instances read this port to seamlessly focus the existing window, and the file is cleaned up upon graceful shutdown.
+- **Single-Instance Mutex**: Prevents duplicate processes (`Global\EtherPulseSingleInstanceMutex`).
+- **Heartbeat Watchdog**: Shuts down the background daemon cleanly when the desktop window is closed.
+- **100% Rust Repository**: Excludes vendored web assets via `.gitattributes` so GitHub Linguist detects the repository as 100% Rust.
 
 ---
 
@@ -69,7 +71,7 @@ Unlike typical network monitor utilities that spawn invisible `cmd.exe` or `ping
 
 ```
 +-----------------------------------------------------------------------------------+
-|                        EtherPulse.exe / LanCableLogger.exe                        |
+|                                  EtherPulse.exe                                   |
 |                                 (100% Pure Rust)                                  |
 |                                                                                   |
 |  +-----------------------------------------------------------------------------+  |
@@ -102,7 +104,7 @@ Unlike typical network monitor utilities that spawn invisible `cmd.exe` or `ping
 - **Compiler (for building from source)**: Rust 1.70+ (`cargo`, `rustc`) with `x86_64-pc-windows-msvc` or `x86_64-pc-windows-gnu`.
 
 ### Running the Application
-Double-click `EtherPulse.exe` (or `LanCableLogger.exe` / `Start Logger.vbs` / `Lan Cable Logger.lnk`).
+Double-click `EtherPulse.exe` (or `EtherPulse.lnk`).
 The application window opens instantly without flashing any console prompt.
 
 ---
@@ -120,10 +122,9 @@ cargo build --release
 # target\release\ether-pulse.exe
 ```
 
-To create the standalone deployment binaries:
+To create the standalone deployment binary:
 ```powershell
 Copy-Item "target\release\ether-pulse.exe" "EtherPulse.exe" -Force
-Copy-Item "target\release\ether-pulse.exe" "LanCableLogger.exe" -Force
 ```
 
 ---
@@ -150,18 +151,18 @@ EtherPulse embeds a low-overhead local HTTP server (default port `3000` with aut
 
 ```
 .
+├── .gitattributes           # GitHub Linguist vendoring (guarantees 100% Rust)
+├── .gitignore               # Build artifacts ignore rules
 ├── Cargo.toml               # Rust package manifest (name: ether-pulse)
 ├── Cargo.lock               # Cargo dependency lockfile
 ├── LICENSE                  # MIT License
 ├── README.md                # Project documentation
 ├── product.md               # Product requirements and technical specification
 ├── lan_disconnects.txt      # Real-time event log
-├── Start Logger.vbs         # Zero-console launcher script
-├── Lan Cable Logger.lnk     # Windows shortcut launcher
+├── EtherPulse.lnk           # Windows shortcut launcher
 ├── EtherPulse.exe           # Standalone release executable
-├── LanCableLogger.exe       # Standalone release executable (compatibility)
 └── src
-    ├── main.rs              # Entry point, subsystem declaration, thread coordination
+    ├── main.rs              # Entry point, subsystem declaration, port persistence
     ├── icmp.rs              # Win32 IcmpSendEcho and GetAdaptersAddresses bindings
     ├── server.rs            # Lightweight embedded HTTP REST server
     ├── state.rs             # Thread-safe telemetry state and duration math
