@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EtherPulse • LAN Telemetry & Watchdog</title>
+  <style>
+    :root {
+      --bg-dark: #070a12;
+      --bg-card: #0f1626;
+      --bg-card-hover: #151f36;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-active: rgba(6, 182, 212, 0.4);
+      --text-main: #f3f4f6;
+      --text-muted: #94a3b8;
+      --accent-green: #10b981;
+      --accent-green-glow: rgba(16, 185, 129, 0.25);
+      --accent-red: #ef4444;
+      --accent-red-glow: rgba(239, 68, 68, 0.35);
+      --accent-cyan: #06b6d4;
+      --accent-cyan-glow: rgba(6, 182, 212, 0.25);
+      --accent-amber: #f59e0b;
+      --accent-blue: #3b82f6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* APP HEADER */
+    header {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #0284c7, #06b6d4);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 16px var(--accent-cyan-glow);
+    }
+
+    .brand-icon svg {
+      width: 22px;
+      height: 22px;
+      fill: #fff;
+    }
+
+    .brand-info h1 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-tag {
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(6, 182, 212, 0.15);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      text-transform: uppercase;
+    }
+
+    .brand-info p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-primary {
+      background: #0284c7;
+      border-color: #0284c7;
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #0369a1;
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #f87171;
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.3);
+    }
+
+    /* MAIN CONTAINER */
+    main {
+      flex: 1;
+      padding: 20px 24px;
+      max-width: 1300px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* STATUS HERO BANNER */
+    .hero-banner {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 18px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .hero-banner.online {
+      border-color: rgba(16, 185, 129, 0.35);
+      box-shadow: 0 4px 24px var(--accent-green-glow);
+    }
+
+    .hero-banner.disconnected {
+      border-color: rgba(239, 68, 68, 0.6);
+      box-shadow: 0 4px 30px var(--accent-red-glow);
+      background: linear-gradient(135deg, #1c0e12, #0f1626);
+    }
+
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .pulse-ring {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      position: relative;
+      box-shadow: 0 0 12px var(--accent-green);
+    }
+
+    .hero-banner.online .pulse-ring::after {
+      content: '';
+      position: absolute;
+      top: -6px;
+      left: -6px;
+      right: -6px;
+      bottom: -6px;
+      border-radius: 50%;
+      border: 2px solid var(--accent-green);
+      animation: pulse 1.6s infinite;
+      opacity: 0.8;
+    }
+
+    .hero-banner.disconnected .pulse-ring {
+      background: var(--accent-red);
+      box-shadow: 0 0 16px var(--accent-red);
+      animation: flash 0.8s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.9); opacity: 0.9; }
+      100% { transform: scale(1.6); opacity: 0; }
+    }
+
+    @keyframes flash {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.15); }
+    }
+
+    .status-text h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .status-text p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .isolation-strip {
+      display: flex;
+      gap: 12px;
+    }
+
+    .target-pill {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 8px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 150px;
+    }
+
+    .target-pill span.label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .target-pill div.val {
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* TELEMETRY STATS GRID */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+    }
+
+    .stat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #fff;
+      font-feature-settings: "tnum";
+    }
+
+    .stat-footer {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* HARDWARE ADAPTER STRIP */
+    .adapter-bar {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+    }
+
+    .adapter-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .adapter-item span.title {
+      color: var(--text-muted);
+    }
+
+    .adapter-item span.val {
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+
+    /* LATENCY WAVEFORM CHART */
+    .chart-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .chart-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chart-legend {
+      display: flex;
+      gap: 16px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .svg-chart-wrap {
+      width: 100%;
+      height: 140px;
+      position: relative;
+    }
+
+    svg.waveform {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    /* LOGS AND EVENTS TABLE */
+    .logs-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      flex: 1;
+    }
+
+    .logs-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      text-align: left;
+    }
+
+    thead th {
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      position: sticky;
+      top: 0;
+      background: var(--bg-card);
+    }
+
+    tbody td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: #e2e8f0;
+    }
+
+    tbody tr:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .badge {
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .badge-danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .badge-success {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    .badge-warning {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      width: 440px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal h3 {
+      font-size: 1.1rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .form-group input, .form-group select {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      color: #fff;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    .form-group input:focus, .form-group select:focus {
+      border-color: var(--accent-cyan);
+    }
+
+    /* COMPACT MODE */
+    body.compact main {
+      padding: 12px;
+      gap: 10px;
+    }
+    body.compact .chart-container,
+    body.compact .adapter-bar,
+    body.compact .logs-container {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 6h16v3H4V6zm2 5h12v7H6v-7zm3 2v3h2v-3H9zm4 0v3h2v-3h-2z"/>
+        </svg>
+      </div>
+      <div class="brand-info">
+        <h1>EtherPulse • LAN Telemetry & Watchdog <span class="badge-tag">Single Window • v1.0</span></h1>
+        <p>Continuous Gateway Ping Telemetry & Cable Outage Watchdog</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn" id="btn-sound" title="Toggle audio alert chime">
+        <span id="sound-icon">🔊</span> <span id="sound-label">Alert Sound ON</span>
+      </button>
+      <button class="btn" id="btn-pause" title="Pause or resume monitoring">
+        <span id="pause-icon">⏸</span> <span id="pause-label">Pause</span>
+      </button>
+      <button class="btn" id="btn-config" title="Settings">⚙ Settings</button>
+      <button class="btn btn-danger" id="btn-exit" title="Exit app cleanly">✖ Exit</button>
+    </div>
+  </header>
+
+  <!-- MAIN BODY -->
+  <main>
+    <!-- HERO STATUS BANNER -->
+    <div class="hero-banner online" id="hero-banner">
+      <div class="status-left">
+        <div class="pulse-ring" id="pulse-indicator"></div>
+        <div class="status-text">
+          <h2 id="status-headline">LAN CABLE CONNECTED</h2>
+          <p id="status-subline">Default Gateway <strong id="hero-gw-ip">192.168.1.1</strong> responding in <span id="hero-rtt">0 ms</span></p>
+        </div>
+      </div>
+      <div class="isolation-strip">
+        <div class="target-pill">
+          <span class="label">Router / Switch</span>
+          <div class="val">
+            <span id="gw-target-name">192.168.1.1</span>
+            <span id="gw-status-badge" style="color: var(--accent-green); font-size: 0.8rem;">● Online</span>
+          </div>
+        </div>
+        <div class="target-pill">
+          <span class="label">WAN / Internet</span>
+          <div class="val">
+            <span id="net-target-name">1.1.1.1</span>
+            <span id="net-status-badge" style="color: var(--accent-green); font-size: 0.8rem;">● Online</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATS GRID -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-header">
+          <span>Total Disconnects</span>
+          <span style="color: var(--accent-red)">⚡</span>
+        </div>
+        <div class="stat-value" id="val-disconnects" style="color: #f87171;">0</div>
+        <div class="stat-footer">
+          <span>Last drop:</span>
+          <strong id="val-last-drop">None</strong>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-header">
+          <span>Total Downtime</span>
+          <span style="color: var(--accent-amber)">⏱</span>
+        </div>
+        <div class="stat-value" id="val-downtime">0.0s</div>
+        <div class="stat-footer">
+          <span>Cumulative outage duration</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-header">
+          <span>Current Uptime Streak</span>
+          <span style="color: var(--accent-green)">🛡</span>
+        </div>
+        <div class="stat-value" id="val-uptime" style="color: #34d399;">00:00:00</div>
+        <div class="stat-footer">
+          <span>Session started:</span>
+          <strong id="val-started-at">--</strong>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-header">
+          <span>Packet Loss</span>
+          <span style="color: var(--accent-cyan)">📊</span>
+        </div>
+        <div class="stat-value" id="val-packet-loss">0.0%</div>
+        <div class="stat-footer">
+          <span id="val-pings-count">0 pings sent</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- HARDWARE ADAPTER STRIP -->
+    <div class="adapter-bar">
+      <div class="adapter-item">
+        <span class="title">Adapter:</span>
+        <span class="val" id="adap-name">Realtek PCIe 2.5GbE Family Controller</span>
+      </div>
+      <div class="adapter-item">
+        <span class="title">Local IP:</span>
+        <span class="val" id="adap-ip">192.168.1.15</span>
+      </div>
+      <div class="adapter-item">
+        <span class="title">Default Gateway:</span>
+        <span class="val" id="adap-gw">192.168.1.1</span>
+      </div>
+      <div class="adapter-item">
+        <span class="title">Link Status:</span>
+        <span class="val" id="adap-status" style="color: var(--accent-green);">Active / Connected</span>
+      </div>
+    </div>
+
+    <!-- LATENCY WAVEFORM -->
+    <div class="chart-container">
+      <div class="chart-header">
+        <div class="chart-title">
+          <span>Real-Time Latency Waveform</span>
+          <span class="badge-tag">Win32 Native ICMP</span>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item">
+            <div class="legend-dot" style="background: var(--accent-cyan);"></div>
+            <span>RTT (ms)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background: var(--accent-red);"></div>
+            <span>Drop Event</span>
+          </div>
+          <div class="legend-item">
+            <span>Min: <strong id="lbl-min-rtt">0ms</strong></span>
+            <span>Avg: <strong id="lbl-avg-rtt">0ms</strong></span>
+            <span>Max: <strong id="lbl-max-rtt">0ms</strong></span>
+          </div>
+        </div>
+      </div>
+      <div class="svg-chart-wrap">
+        <svg class="waveform" id="chart-svg" preserveAspectRatio="none" viewBox="0 0 800 120">
+          <defs>
+            <linearGradient id="latencyGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.35" />
+              <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.0" />
+            </linearGradient>
+          </defs>
+          <path id="chart-area" d="" fill="url(#latencyGrad)" />
+          <path id="chart-line" d="" fill="none" stroke="#06b6d4" stroke-width="2.5" stroke-linejoin="round" />
+          <g id="chart-drop-markers"></g>
+        </svg>
+      </div>
+    </div>
+
+    <!-- EVENT HISTORY TABLE -->
+    <div class="logs-container">
+      <div class="logs-header">
+        <div class="chart-title">
+          <span>Disconnect & Restoration Events</span>
+          <span class="badge-tag" id="log-count-tag">0 logged</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn" id="btn-open-log" title="Open lan_disconnects.txt in Notepad">📄 Open in Notepad</button>
+          <button class="btn" id="btn-export-csv" title="Export as CSV">📥 CSV</button>
+          <button class="btn" id="btn-export-json" title="Export as JSON">📥 JSON</button>
+          <button class="btn btn-danger" id="btn-clear-log" title="Clear log table">🗑 Clear</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Event</th>
+              <th>Target</th>
+              <th>Outage Duration</th>
+              <th>Diagnostics & Details</th>
+            </tr>
+          </thead>
+          <tbody id="events-tbody">
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">
+                No disconnect events detected. LAN cable connection is stable.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- CONFIG MODAL -->
+  <div class="modal-overlay" id="config-modal">
+    <div class="modal">
+      <h3>Monitoring Configuration</h3>
+      <div class="form-group">
+        <label>Gateway Target (Router IP)</label>
+        <input type="text" id="cfg-gateway" value="192.168.1.1" placeholder="192.168.1.1">
+      </div>
+      <div class="form-group">
+        <label>Internet Target (WAN IP)</label>
+        <input type="text" id="cfg-internet" value="1.1.1.1" placeholder="1.1.1.1">
+      </div>
+      <div class="form-group">
+        <label>Ping Interval</label>
+        <select id="cfg-interval">
+          <option value="250">250 ms (Ultra fast)</option>
+          <option value="500">500 ms (Fast)</option>
+          <option value="1000" selected>1000 ms (1 second standard)</option>
+          <option value="2000">2000 ms (2 seconds)</option>
+        </select>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px;">
+        <button class="btn" id="btn-cfg-cancel">Cancel</button>
+        <button class="btn btn-primary" id="btn-cfg-save">Save & Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let soundEnabled = true;
+    let monitoringPaused = false;
+    let lastKnownOnline = true;
+    let audioCtx = null;
+
+    // Web Audio Synthesizer
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    function playDisconnectAlert() {
+      if (!soundEnabled) return;
+      initAudio();
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(220, audioCtx.currentTime + 0.35);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.36);
+      } catch (e) {}
+    }
+
+    function playRestoredChime() {
+      if (!soundEnabled) return;
+      initAudio();
+      try {
+        const now = audioCtx.currentTime;
+        [523.25, 659.25, 783.99].forEach((freq, idx) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.08, now + idx * 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.25);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now + idx * 0.1);
+          osc.stop(now + idx * 0.1 + 0.26);
+        });
+      } catch (e) {}
+    }
+
+    // Polling and Heartbeat
+    async function updateTelemetry() {
+      try {
+        const res = await fetch('/api/status');
+        if (!res.ok) return;
+        const data = await res.json();
+        renderUI(data);
+      } catch (e) {}
+    }
+
+    function renderUI(data) {
+      const banner = document.getElementById('hero-banner');
+      const headline = document.getElementById('status-headline');
+      const subline = document.getElementById('status-subline');
+      const heroGwIp = document.getElementById('hero-gw-ip');
+      const heroRtt = document.getElementById('hero-rtt');
+      const gwStatusBadge = document.getElementById('gw-status-badge');
+      const netStatusBadge = document.getElementById('net-status-badge');
+
+      heroGwIp.textContent = data.target_gateway;
+      heroRtt.textContent = data.current_rtt_ms + ' ms';
+      document.getElementById('gw-target-name').textContent = data.target_gateway;
+      document.getElementById('net-target-name').textContent = data.target_internet;
+
+      // Online / Disconnected state transitions
+      if (data.is_gateway_online) {
+        banner.className = 'hero-banner online';
+        headline.textContent = 'LAN CABLE CONNECTED';
+        headline.style.color = '#fff';
+        gwStatusBadge.textContent = '● Online (' + data.current_rtt_ms + 'ms)';
+        gwStatusBadge.style.color = 'var(--accent-green)';
+
+        if (!lastKnownOnline) {
+          playRestoredChime();
+        }
+        lastKnownOnline = true;
+      } else {
+        banner.className = 'hero-banner disconnected';
+        headline.textContent = 'LAN CABLE DISCONNECTED';
+        headline.style.color = '#f87171';
+        gwStatusBadge.textContent = '✖ No Response';
+        gwStatusBadge.style.color = 'var(--accent-red)';
+
+        if (lastKnownOnline) {
+          playDisconnectAlert();
+        }
+        lastKnownOnline = false;
+      }
+
+      if (data.is_internet_online) {
+        netStatusBadge.textContent = '● Online (' + data.internet_rtt_ms + 'ms)';
+        netStatusBadge.style.color = 'var(--accent-green)';
+      } else {
+        netStatusBadge.textContent = '✖ Unreachable';
+        netStatusBadge.style.color = 'var(--accent-red)';
+      }
+
+      // Stats
+      document.getElementById('val-disconnects').textContent = data.total_disconnects;
+      document.getElementById('val-last-drop').textContent = data.last_disconnect_time_str || 'None';
+      document.getElementById('val-downtime').textContent = (data.total_downtime_ms / 1000).toFixed(1) + 's';
+      document.getElementById('val-uptime').textContent = formatSeconds(data.current_streak_secs);
+      document.getElementById('val-started-at').textContent = data.monitoring_started_at;
+
+      const totalPings = data.total_pings || 1;
+      const lossPct = ((data.failed_pings / totalPings) * 100).toFixed(1);
+      document.getElementById('val-packet-loss').textContent = lossPct + '%';
+      document.getElementById('val-pings-count').textContent = data.total_pings + ' pings recorded';
+
+      // Adapter
+      if (data.adapter) {
+        document.getElementById('adap-name').textContent = data.adapter.description || data.adapter.name;
+        document.getElementById('adap-ip').textContent = data.adapter.ip_address;
+        document.getElementById('adap-gw').textContent = data.adapter.gateway;
+        document.getElementById('adap-status').textContent = data.adapter.status || 'Active';
+      }
+
+      // Render Latency Chart
+      renderChart(data.rolling_latency || []);
+
+      // Render Events
+      renderEvents(data.events || []);
+    }
+
+    function formatSeconds(secs) {
+      const h = Math.floor(secs / 3600);
+      const m = Math.floor((secs % 3600) / 60);
+      const s = secs % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function renderChart(samples) {
+      if (!samples || samples.length === 0) return;
+
+      const svg = document.getElementById('chart-svg');
+      const line = document.getElementById('chart-line');
+      const area = document.getElementById('chart-area');
+      const markers = document.getElementById('chart-drop-markers');
+
+      const width = 800;
+      const height = 120;
+      const padding = 10;
+
+      let maxRtt = 10;
+      let minRtt = 9999;
+      let totalRtt = 0;
+      let count = 0;
+
+      samples.forEach(s => {
+        if (s.success) {
+          if (s.rtt_ms > maxRtt) maxRtt = s.rtt_ms;
+          if (s.rtt_ms < minRtt) minRtt = s.rtt_ms;
+          totalRtt += s.rtt_ms;
+          count++;
+        }
+      });
+
+      if (count === 0) minRtt = 0;
+      const avgRtt = count > 0 ? (totalRtt / count).toFixed(1) : 0;
+      maxRtt = Math.max(maxRtt, 5); // at least 5ms scale
+
+      document.getElementById('lbl-min-rtt').textContent = minRtt + 'ms';
+      document.getElementById('lbl-avg-rtt').textContent = avgRtt + 'ms';
+      document.getElementById('lbl-max-rtt').textContent = maxRtt + 'ms';
+
+      const step = width / Math.max(samples.length - 1, 1);
+      let lineD = '';
+      let areaD = `M 0,${height} `;
+      let markerHtml = '';
+
+      samples.forEach((s, i) => {
+        const x = i * step;
+        let y = height - padding;
+        if (s.success) {
+          const ratio = s.rtt_ms / maxRtt;
+          y = height - padding - ratio * (height - 2 * padding);
+        } else {
+          y = height; // Drop at bottom
+          markerHtml += `<line x1="${x}" y1="0" x2="${x}" y2="${height}" stroke="#ef4444" stroke-width="2" stroke-dasharray="2,2"/>`;
+          markerHtml += `<circle cx="${x}" cy="${height - 6}" r="4" fill="#ef4444"/>`;
+        }
+
+        if (i === 0) {
+          lineD += `M ${x},${y} `;
+          areaD += `L ${x},${y} `;
+        } else {
+          lineD += `L ${x},${y} `;
+          areaD += `L ${x},${y} `;
+        }
+      });
+
+      areaD += `L ${width},${height} Z`;
+      line.setAttribute('d', lineD);
+      area.setAttribute('d', areaD);
+      markers.innerHTML = markerHtml;
+    }
+
+    function renderEvents(events) {
+      const tbody = document.getElementById('events-tbody');
+      document.getElementById('log-count-tag').textContent = events.length + ' logged';
+
+      if (!events || events.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">No disconnect events detected. LAN cable connection is stable.</td></tr>`;
+        return;
+      }
+
+      let html = '';
+      events.forEach(ev => {
+        const badgeClass = ev.badge_type === 'danger' ? 'badge-danger' : 'badge-success';
+        const durText = ev.duration_secs ? `${ev.duration_secs.toFixed(1)}s` : '---';
+        html += `
+          <tr>
+            <td><strong>${ev.timestamp}</strong></td>
+            <td><span class="badge ${badgeClass}">${ev.event_type}</span></td>
+            <td><code>${ev.target}</code></td>
+            <td><strong style="color: ${ev.duration_secs ? 'var(--accent-amber)' : 'inherit'}">${durText}</strong></td>
+            <td>${ev.details}</td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+    }
+
+    // Event Listeners
+    document.getElementById('btn-sound').addEventListener('click', () => {
+      initAudio();
+      soundEnabled = !soundEnabled;
+      document.getElementById('sound-icon').textContent = soundEnabled ? '🔊' : '🔇';
+      document.getElementById('sound-label').textContent = soundEnabled ? 'Alert Sound ON' : 'Alert Sound MUTED';
+    });
+
+    document.getElementById('btn-pause').addEventListener('click', async () => {
+      monitoringPaused = !monitoringPaused;
+      document.getElementById('pause-icon').textContent = monitoringPaused ? '▶' : '⏸';
+      document.getElementById('pause-label').textContent = monitoringPaused ? 'Resume' : 'Pause';
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ monitoring_paused: monitoringPaused })
+      });
+    });
+
+    // Config Modal
+    const modal = document.getElementById('config-modal');
+    document.getElementById('btn-config').addEventListener('click', () => {
+      modal.classList.add('open');
+    });
+    document.getElementById('btn-cfg-cancel').addEventListener('click', () => {
+      modal.classList.remove('open');
+    });
+    document.getElementById('btn-cfg-save').addEventListener('click', async () => {
+      const gw = document.getElementById('cfg-gateway').value;
+      const net = document.getElementById('cfg-internet').value;
+      const interval = parseInt(document.getElementById('cfg-interval').value);
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target_gateway: gw,
+          target_internet: net,
+          ping_interval_ms: interval
+        })
+      });
+      modal.classList.remove('open');
+      updateTelemetry();
+    });
+
+    // Log Actions
+    document.getElementById('btn-open-log').addEventListener('click', async () => {
+      await fetch('/api/action/open-log', { method: 'POST' });
+    });
+    document.getElementById('btn-export-csv').addEventListener('click', () => {
+      window.location.href = '/api/export?format=csv';
+    });
+    document.getElementById('btn-export-json').addEventListener('click', () => {
+      window.location.href = '/api/export?format=json';
+    });
+    document.getElementById('btn-clear-log').addEventListener('click', async () => {
+      if (confirm('Clear event history?')) {
+        await fetch('/api/action/clear', { method: 'POST' });
+        updateTelemetry();
+      }
+    });
+
+    // Clean Exit
+    document.getElementById('btn-exit').addEventListener('click', async () => {
+      if (confirm('Quit EtherPulse?')) {
+        await fetch('/api/exit', { method: 'POST' });
+        window.close();
+      }
+    });
+
+    // Watchdog Heartbeat & Auto-Exit on Window Close
+    window.addEventListener('beforeunload', () => {
+      navigator.sendBeacon('/api/exit');
+    });
+
+    setInterval(() => {
+      fetch('/api/heartbeat', { method: 'POST' }).catch(() => {});
+    }, 2000);
+
+    // Initial load and fast loop
+    updateTelemetry();
+    setInterval(updateTelemetry, 600);
+  </script>
+</body>
+</html>
